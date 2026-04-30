@@ -1,74 +1,142 @@
-###
-➡️ **Pointing port lokal ke HTTPS domain (reverse proxy via Nginx + SSL Let's Encrypt)**
-➡️ Cocok untuk **NAT VPS (port service internal → domain publik HTTPS)**
-➡️ User hanya input: **domain + port**
 
 ---
 
-## 🔧 Fitur
+# 📡 NAT VPS HTTPS Reverse Proxy Installer
 
-* Auto install Nginx + Certbot
-* Auto generate config reverse proxy
-* Auto SSL (Let's Encrypt)
-* Support NAT VPS (port bebas, misal 7547 / 8080 / 3000 dll)
-* Clean & idempotent (bisa rerun)
+**Auto Cloudflare DNS + SSL + Telegram Notification**
+
+Installer ini digunakan untuk **pointing port lokal ke domain HTTPS publik** pada VPS (termasuk NAT VPS), dengan fitur otomatis:
+
+* 🌐 Auto create subdomain via Cloudflare API
+* 🔒 Auto SSL (Let's Encrypt via Certbot)
+* ⚙️ Auto reverse proxy via Nginx
+* 🔔 Notifikasi realtime ke Telegram Bot
+* 🚀 Simple installer (cukup input beberapa parameter)
 
 ---
 
-# =========================
-# ENABLE SITE
-# =========================
-ln -sf $CONFIG /etc/nginx/sites-enabled/
+# 🧩 Use Case
 
-# =========================
-# TEST & RESTART NGINX
-# =========================
-nginx -t
-systemctl restart nginx
+Cocok untuk:
 
-# =========================
-# SSL SETUP
-# =========================
-if [[ "$SSL" == "y" ]]; then
-  echo "🔒 Setup SSL Let's Encrypt..."
-  certbot --nginx -d $DOMAIN --non-interactive --agree-tos -m admin@$DOMAIN --redirect
-fi
+* GenieACS (TR-069) → port 7547
+* Web panel internal (NodeJS, PHP, dll)
+* API service lokal
+* Monitoring tools
+* Semua service berbasis port lokal
 
-# =========================
-# FIREWALL (OPTIONAL)
-# =========================
-ufw allow 'Nginx Full' || true
+---
 
-# =========================
-# DONE
-# =========================
-echo ""
-echo "✅ SELESAI!"
-echo "🌐 Domain: https://$DOMAIN"
-echo "📡 Forward ke: http://127.0.0.1:$PORT"
-echo ""
+# 🏗️ Arsitektur
+
+```
+Internet (HTTPS)
+       ↓
+Cloudflare DNS
+       ↓
+Domain (acs.domain.com)
+       ↓
+Nginx Reverse Proxy (VPS)
+       ↓
+127.0.0.1:PORT (Service lokal)
 ```
 
 ---
 
-## 📦 Cara Pakai (untuk user GitHub kamu)
+# 📦 Instalasi
 
-```json
-wget https://raw.githubusercontent.com/heruhendri/Installer-Pointing/main/install.sh
+## 1. Download Script
+
+```bash
+wget https://raw.githubusercontent.com/USERNAME/REPO/main/install.sh
 chmod +x install.sh
+```
+
+## 2. Jalankan Installer
+
+```bash
 ./install.sh
 ```
 
 ---
 
-## 📌 Contoh Penggunaan
+# 🧾 Input yang Dibutuhkan
+
+Saat menjalankan script, kamu akan diminta:
+
+| Parameter    | Contoh        | Keterangan                  |
+| ------------ | ------------- | --------------------------- |
+| Domain Utama | `hendri.site` | Domain di Cloudflare        |
+| Subdomain    | `acs`         | Akan jadi `acs.hendri.site` |
+| Port Lokal   | `7547`        | Port service di VPS         |
+| CF API Token | `xxxx`        | Token Cloudflare            |
+| Zone ID      | `xxxx`        | Zone domain                 |
+| IP VPS       | `1.1.1.1`     | IP publik VPS               |
+| Bot Token    | `xxxx`        | Token Telegram bot          |
+| Chat ID      | `xxxx`        | ID Telegram                 |
+
+---
+
+# 🔑 Cara Mendapatkan Data
+
+## ☁️ Cloudflare API Token
+
+1. Login ke Cloudflare
+2. Buka: **My Profile → API Tokens**
+3. Create Token dengan permission:
+
+   * Zone → DNS → Edit
+   * Zone → Zone → Read
+
+---
+
+## 📌 Zone ID
+
+* Masuk ke domain di Cloudflare
+* Lihat di sidebar (Overview)
+
+---
+
+## 🤖 Telegram Bot
+
+1. Chat ke BotFather
+2. Buat bot → dapatkan **BOT TOKEN**
+
+### Ambil Chat ID
+
+Kirim pesan ke bot, lalu buka:
+
+```
+https://api.telegram.org/bot<BOT_TOKEN>/getUpdates
+```
+
+---
+
+# 🔔 Contoh Notifikasi Telegram
+
+```
+🚀 INSTALL STARTED
+Domain: acs.hendri.site
+
+✅ DNS CREATED
+✅ NGINX CONFIGURED
+🔒 SSL SUCCESS
+
+🎉 INSTALL DONE
+https://acs.hendri.site
+```
+
+---
+
+# 🌐 Hasil Akhir
 
 Misalnya:
 
-* Domain: `acs.hendri.site`
-* Port: `7547` (GenieACS / TR-069)
+* Subdomain: `acs`
+* Domain: `hendri.site`
+* Port: `7547`
 
-➡️ Maka:
+Maka:
 
 ```
 https://acs.hendri.site → http://127.0.0.1:7547
@@ -76,14 +144,56 @@ https://acs.hendri.site → http://127.0.0.1:7547
 
 ---
 
-## ⚠️ Catatan Penting (NAT VPS)
+# ⚠️ Persyaratan
 
-* Pastikan:
-
-  * Port lokal sudah listen (`netstat -tulnp`)
-  * Domain sudah A record ke IP VPS
-* Kalau pakai Cloudflare:
-
-  * Gunakan **DNS Only (abu-abu)** saat SSL pertama kali
+* OS: Ubuntu / Debian
+* Akses root
+* Domain di Cloudflare
+* Port service sudah aktif (`netstat -tulnp`)
+* Port 80 & 443 terbuka
 
 ---
+
+# 🚨 Troubleshooting
+
+## ❌ SSL Gagal
+
+* Pastikan domain resolve ke IP VPS
+* Disable proxy Cloudflare (DNS Only) saat pertama install
+
+## ❌ DNS Tidak Terbuat
+
+* Cek API Token permission
+* Cek Zone ID benar
+
+## ❌ Nginx Error
+
+```bash
+nginx -t
+systemctl status nginx
+```
+
+---
+
+# 🔥 Roadmap (Next Feature)
+
+* [ ] Multi-port auto (GenieACS full stack)
+* [ ] Wildcard subdomain
+* [ ] Dashboard monitoring Telegram
+* [ ] Auto install GenieACS
+* [ ] Rate limiting & security hardening
+
+---
+
+# 🤝 Kontribusi
+
+Pull request terbuka untuk improvement.
+
+---
+
+# 📄 License
+
+Free to use for personal & ISP internal use.
+
+---
+
