@@ -1,4 +1,4 @@
-
+###
 ➡️ **Pointing port lokal ke HTTPS domain (reverse proxy via Nginx + SSL Let's Encrypt)**
 ➡️ Cocok untuk **NAT VPS (port service internal → domain publik HTTPS)**
 ➡️ User hanya input: **domain + port**
@@ -53,7 +53,7 @@ echo ""
 
 ## 📦 Cara Pakai (untuk user GitHub kamu)
 
-```bash
+```json
 wget https://raw.githubusercontent.com/USERNAME/REPO/main/install.sh
 chmod +x install.sh
 ./install.sh
