@@ -54,7 +54,7 @@ echo ""
 ## 📦 Cara Pakai (untuk user GitHub kamu)
 
 ```json
-wget https://raw.githubusercontent.com/USERNAME/REPO/main/install.sh
+wget https://raw.githubusercontent.com/heruhendri/Installer-Pointing/main/install.sh
 chmod +x install.sh
 ./install.sh
 ```
