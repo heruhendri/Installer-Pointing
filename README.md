@@ -48,7 +48,7 @@ Nginx Reverse Proxy (VPS)
 ## 1. Download Script
 
 ```bash
-wget https://raw.githubusercontent.com/USERNAME/REPO/main/install.sh
+wget https://raw.githubusercontent.com/heruhendri/Installer-Pointing/semi-auto/install.sh
 chmod +x install.sh
 ```
 
