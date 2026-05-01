@@ -6,7 +6,7 @@ echo "🚀 AUTO POINTING + CLOUDFLARE + SSL (FIX VERSION)"
 # =========================
 # 🔐 CONFIG
 # =========================
-CF_TOKEN="cfut_eA8dKyigwKr3sN2DY566i8ul655GEoeLyBJGdrzh04521d34"
+CF_TOKEN="cfut_fhvtMyto13ZQPYb1eBdJlNV7T1vpaBJ7YWBQvJfJb06e0e4d"
 ZONE_ID="f2a874616f203546032bcac26a62026c"
 ROOT_DOMAIN="hendrii.web.id"
 
