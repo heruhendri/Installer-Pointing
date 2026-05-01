@@ -1,8 +1,15 @@
-# 🚀 Installer Pointing (NAT VPS + Monitoring)
+# 🚀 Auto Pointing Installer (NAT VPS)
 
-## 📦 Install 1 Command
+## 🔥 Fitur
+- Auto subdomain Cloudflare
+- Auto Nginx reverse proxy
+- Auto SSL Let's Encrypt
+- Support:
+  - Port → https://domain:port
+  - Folder → hosting website
+
+## ⚡ Install (1 Command)
 
 ```bash
-wget https://raw.githubusercontent.com/heruhendri/Installer-Pointing/v2/install.sh
-chmod +x install.sh
-./install.sh
+wget https://raw.githubusercontent.com/heruhendri/Installer-Pointing/v22/install.sh
+bash install.sh
