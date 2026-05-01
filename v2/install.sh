@@ -6,12 +6,12 @@ echo "🚀 AUTO POINTING + CLOUDFLARE + SSL (FIX VERSION)"
 # =========================
 # 🔐 CONFIG
 # =========================
-CF_TOKEN="ISI_TOKEN_BARU"
-ZONE_ID="ISI_ZONE_ID"
-ROOT_DOMAIN="hdri.web.id"
+CF_TOKEN="cfut_eA8dKyigwKr3sN2DY566i8ul655GEoeLyBJGdrzh04521d34"
+ZONE_ID="f2a874616f203546032bcac26a62026c"
+ROOT_DOMAIN="hendrii.web.id"
 
-BOT_TOKEN="ISI_BOT_TOKEN_BARU"
-CHAT_ID="ISI_CHAT_ID"
+BOT_TOKEN="8338308507:AAF21oPPuLGoY_6bVKLqa5Od7fBh1XEFurQ"
+CHAT_ID="8264681468"
 
 API="https://api.cloudflare.com/client/v4"
 
