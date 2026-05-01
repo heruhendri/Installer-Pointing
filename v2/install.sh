@@ -6,7 +6,7 @@ echo "🚀 AUTO POINTING + CLOUDFLARE + SSL"
 # =========================
 # 🔐 CONFIG (EDIT SEKALI SAJA)
 # =========================
-CF_TOKEN="cfut_MLM59s3B0YtBRAi3QjD3MwvzOdRKxKGFC2PawYFM00859e48"
+CF_TOKEN="cfut_4YogM0j6QnAcPu0DVl8gMO3UU8uMcugBfJwTW1EZ0b404493"
 ZONE_ID="88003ae563243fd4e69cb7381fea0855"
 ROOT_DOMAIN="hdri.web.id"
 
