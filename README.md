@@ -11,5 +11,5 @@
 ## ⚡ Install (1 Command)
 
 ```bash
-wget https://raw.githubusercontent.com/heruhendri/Installer-Pointing/v2/install.sh
+wget https://raw.githubusercontent.com/heruhendri/Installer-Pointing/main/install.sh
 bash install.sh
