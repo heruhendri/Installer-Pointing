@@ -7,7 +7,7 @@ mkdir -p /root/pointing
 cd /root/pointing
 
 echo "📥 Download script..."
-wget -q https://raw.githubusercontent.com/heruhendri/Installer-Pointing/v2/v2/install.sh
+wget -q https://raw.githubusercontent.com/heruhendri/Installer-Pointing/main/v2/install.sh
 
 chmod +x install.sh
 
