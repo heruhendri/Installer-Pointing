@@ -1,37 +1,47 @@
 #!/bin/bash
 
 clear
-echo "🚀 INSTALLER PORT → HTTPS + CLOUDFLARE + TELEGRAM"
+echo "🚀 INSTALLER AUTO (NO CONFIG USER)"
 
 # =========================
-# INPUT USER
+# 🔐 CONFIG (EDIT DI SINI SAJA)
+# =========================
+CF_TOKEN="ISI_CLOUDFLARE_API_TOKEN"
+ZONE_ID="ISI_ZONE_ID"
+VPS_IP="ISI_IP_VPS"
+
+BOT_TOKEN="ISI_TELEGRAM_BOT_TOKEN"
+CHAT_ID="ISI_CHAT_ID"
+
+# =========================
+# INPUT USER (MINIMAL)
 # =========================
 read -p "Masukkan domain utama (contoh: hendri.site): " ROOT_DOMAIN
 read -p "Masukkan subdomain (contoh: acs): " SUB
 read -p "Masukkan port lokal (contoh: 7547): " PORT
-read -p "Cloudflare API Token: " CF_TOKEN
-read -p "Cloudflare Zone ID: " ZONE_ID
-read -p "IP VPS Publik: " VPS_IP
-
-read -p "Telegram Bot Token: " BOT_TOKEN
-read -p "Telegram Chat ID: " CHAT_ID
 
 DOMAIN="$SUB.$ROOT_DOMAIN"
+
+# =========================
+# VALIDASI
+# =========================
+if [[ -z "$ROOT_DOMAIN" || -z "$SUB" || -z "$PORT" ]]; then
+  echo "❌ Input tidak lengkap!"
+  exit 1
+fi
 
 # =========================
 # FUNCTION TELEGRAM
 # =========================
 send_telegram() {
-  TEXT="$1"
   curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
   -d chat_id="$CHAT_ID" \
-  -d text="$TEXT" > /dev/null
+  -d text="$1" > /dev/null
 }
 
 send_telegram "🚀 INSTALL STARTED
 Domain: $DOMAIN
-Port: $PORT
-IP: $VPS_IP"
+Port: $PORT"
 
 # =========================
 # INSTALL DEPENDENCY
@@ -43,7 +53,7 @@ apt install nginx certbot python3-certbot-nginx curl -y
 # =========================
 # CREATE DNS CLOUDFLARE
 # =========================
-echo "☁️ Create DNS Cloudflare..."
+echo "☁️ Create DNS..."
 
 CREATE_DNS=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
  -H "Authorization: Bearer $CF_TOKEN" \
@@ -51,25 +61,19 @@ CREATE_DNS=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_I
  --data "{\"type\":\"A\",\"name\":\"$SUB\",\"content\":\"$VPS_IP\",\"ttl\":120,\"proxied\":false}")
 
 if echo "$CREATE_DNS" | grep -q '"success":true'; then
-  echo "✅ DNS berhasil dibuat"
-  send_telegram "✅ DNS CREATED: $DOMAIN → $VPS_IP"
+  echo "✅ DNS OK"
+  send_telegram "✅ DNS CREATED: $DOMAIN"
 else
-  echo "❌ Gagal create DNS"
+  echo "❌ DNS FAIL"
   send_telegram "❌ DNS FAILED: $DOMAIN"
 fi
 
-# =========================
-# WAIT DNS PROPAGATION
-# =========================
-echo "⏳ Tunggu DNS propagation (10 detik)..."
 sleep 10
 
 # =========================
 # NGINX CONFIG
 # =========================
 CONFIG="/etc/nginx/sites-available/$DOMAIN"
-
-echo "⚙️ Setup Nginx..."
 
 cat > $CONFIG <<EOF
 server {
@@ -92,23 +96,18 @@ EOF
 
 ln -sf $CONFIG /etc/nginx/sites-enabled/
 
-nginx -t
-systemctl restart nginx
+nginx -t && systemctl restart nginx
 
-send_telegram "✅ NGINX CONFIGURED: $DOMAIN"
+send_telegram "✅ NGINX OK: $DOMAIN"
 
 # =========================
-# SSL SETUP
+# SSL
 # =========================
-echo "🔒 Setup SSL..."
-
 certbot --nginx -d $DOMAIN --non-interactive --agree-tos -m admin@$ROOT_DOMAIN --redirect
 
 if [ $? -eq 0 ]; then
-  echo "✅ SSL berhasil"
   send_telegram "🔒 SSL SUCCESS: https://$DOMAIN"
 else
-  echo "❌ SSL gagal"
   send_telegram "❌ SSL FAILED: $DOMAIN"
 fi
 
@@ -120,12 +119,8 @@ ufw allow 'Nginx Full' || true
 # =========================
 # DONE
 # =========================
-echo ""
-echo "🎉 INSTALL SELESAI!"
-echo "🌐 https://$DOMAIN → http://127.0.0.1:$PORT"
+echo "🎉 SELESAI: https://$DOMAIN"
 
-send_telegram "🎉 INSTALL DONE
-
+send_telegram "🎉 DONE
 🌐 https://$DOMAIN
-➡️ Port: $PORT
-🖥 IP: $VPS_IP"
+➡️ Port: $PORT"
