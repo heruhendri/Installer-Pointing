@@ -1,0 +1,22 @@
+name: Deploy & Jalankan
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  jalankan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ambil Kode
+        uses: actions/checkout@v4
+
+      - name: Buat Berkas Konfigurasi Otomatis
+        run: |
+          echo "CF_TOKEN=${{ secrets.CF_TOKEN }}" >> config.env
+          echo "ZONE_ID=${{ secrets.ZONE_ID }}" >> config.env
+          echo "ROOT_DOMAIN=${{ secrets.ROOT_DOMAIN }}" >> config.env
+          echo "BOT_TOKEN=${{ secrets.BOT_TOKEN }}" >> config.env
+          echo "CHAT_ID=${{ secrets.CHAT_ID }}" >> config.env
+
+      - name: Jalankan Skrip Kamu
+        run: bash install.sh
