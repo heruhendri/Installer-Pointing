@@ -110,7 +110,12 @@ install_config() {
     echo "🌐 Target Domain: $DOMAIN"
 
     detect_ip
-    send_telegram "🚀 *MULAI INSTALASI* \nDomain: \`$DOMAIN\` \nIP: \`$IP\`"
+
+    # ✅ NOTIFIKASI: MULAI INSTALASI
+    send_telegram "🚀 *MULAI INSTALASI*
+Domain: \`$DOMAIN\`
+IP: \`$IP\`
+Status: Sedang diproses..."
 
     # Instal paket
     echo "📦 Memeriksa & menginstal paket pendukung..."
@@ -133,6 +138,11 @@ install_config() {
     fi
     echo "✅ DNS Berhasil diatur."
 
+    # ✅ NOTIFIKASI: DNS BERHASIL
+    send_telegram "☁️ *DNS BERHASIL*
+\`$DOMAIN\` ➡️ \`$IP\`
+(Proxied: Non-Aktif)"
+
     # Buat Konfigurasi Nginx
     echo "⚙️ Membuat konfigurasi Nginx..."
     CONFIG_PATH="/etc/nginx/sites-available/$DOMAIN"
@@ -154,6 +164,7 @@ server {
     }
 }
 EOF
+      MODE_INFO="Port ($PORT)"
     else
     cat > $CONFIG_PATH <<EOF
 server {
@@ -168,6 +179,7 @@ server {
     }
 }
 EOF
+      MODE_INFO="Folder ($FOLDER)"
     fi
 
     ln -sf $CONFIG_PATH /etc/nginx/sites-enabled/
@@ -177,13 +189,20 @@ EOF
     systemctl restart nginx
     echo "✅ Nginx Aktif."
 
+    # ✅ NOTIFIKASI: NGINX SIAP
+    send_telegram "✅ *NGINX SIAP*
+Domain: \`$DOMAIN\`
+Mode: $MODE_INFO"
+
     # Pasang SSL
     echo "🔒 Memasang SSL..."
     certbot --nginx -d $DOMAIN --non-interactive --agree-tos -m "admin@$ROOT_DOMAIN" --redirect > /dev/null 2>&1
 
     if [[ $? -eq 0 ]]; then
       echo "✅ SSL Aktif (HTTPS)"
-      send_telegram "🔒 *SSL AKTIF* \n✅ https://$DOMAIN"
+      # ✅ NOTIFIKASI: SSL AKTIF
+      send_telegram "🔒 *SSL AKTIF*
+✅ https://$DOMAIN"
     else
       echo "⚠️ SSL Gagal / Sudah Ada"
       send_telegram "⚠️ *SSL GAGAL*: $DOMAIN"
@@ -193,6 +212,11 @@ EOF
     echo "======================================"
     echo "✅ SELESAI: https://$DOMAIN"
     echo "======================================"
+
+    # ✅ NOTIFIKASI: INSTALASI SELESAI
+    send_telegram "🎉 *INSTALASI SELESAI*
+✅ Domain: https://$DOMAIN
+✅ Status: Berhasil diinstal"
 }
 
 # ======================================
