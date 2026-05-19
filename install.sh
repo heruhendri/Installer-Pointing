@@ -5,36 +5,38 @@ echo "🚀 AUTO POINTING + CLOUDFLARE + SSL"
 echo "======================================"
 
 # ======================================
-# 📦 MUAT KONFIGURASI DARI BERKAS
-# Otomatis dibuat oleh GitHub Actions / Manual
+# 📦 LOKASI KONFIGURASI (DIPINDAH KE SISTEM)
+# Supaya bisa dijalankan dari folder mana saja
 # ======================================
-CONFIG_FILE="config.env"
+CONFIG_FILE="/etc/cf/config.env"
 
 # Cek apakah berkas konfigurasi ada
 if [ ! -f "$CONFIG_FILE" ]; then
     echo ""
     echo "❌ KESALAHAN: Berkas konfigurasi '$CONFIG_FILE' tidak ditemukan!"
     echo ""
-    echo "👉 Jika dijalankan LOKAL/SERVER: Buat berkas config.env dengan isi:"
+    echo "👉 Buat folder & berkas dengan perintah:"
+    echo "   sudo mkdir -p /etc/cf"
+    echo "   sudo nano /etc/cf/config.env"
+    echo ""
+    echo "👉 Isi dengan:"
     echo "CF_TOKEN=token_anda"
     echo "ZONE_ID=zone_id_anda"
     echo "ROOT_DOMAIN=domainanda.web.id"
     echo "BOT_TOKEN=bot_telegram"
     echo "CHAT_ID=chat_id_telegram"
-    echo ""
-    echo "👉 Jika dijalankan di GITHUB: Pastikan Secrets & Workflow sudah benar."
     exit 1
 fi
 
-# Membaca dan memuat semua variabel dari berkas konfigurasi
+# Memuat konfigurasi
 echo "🔓 Memuat konfigurasi rahasia..."
 export $(grep -v '^#' $CONFIG_FILE | xargs)
 
-# Validasi variabel wajib terisi
+# Validasi variabel
 REQUIRED_VARS=("CF_TOKEN" "ZONE_ID" "ROOT_DOMAIN" "BOT_TOKEN" "CHAT_ID")
 for VAR in "${REQUIRED_VARS[@]}"; do
     if [ -z "${!VAR}" ]; then
-        echo "❌ KESALAHAN: Variabel $VAR kosong atau tidak ditemukan di $CONFIG_FILE"
+        echo "❌ KESALAHAN: Variabel $VAR kosong di $CONFIG_FILE"
         exit 1
     fi
 done
@@ -43,63 +45,14 @@ done
 API="https://api.cloudflare.com/client/v4"
 
 # ======================================
-# 🔒 CEK HAK AKSES ROOT
+# 🔒 CEK & MINTA HAK AKSES OTOMATIS
 # ======================================
 if [[ $EUID -ne 0 ]]; then
-   echo "❌ KESALAHAN: Skrip ini harus dijalankan sebagai pengguna ROOT"
-   echo "   Gunakan perintah: sudo bash install.sh"
-   exit 1
+    echo "⚠️ Membutuhkan hak akses administratif..."
+    # Jalankan ulang skrip ini dengan sudo secara otomatis
+    exec sudo "$0" "$@"
+    exit $?
 fi
-
-# ======================================
-# 📥 INPUT PENGGUNA
-# ======================================
-echo ""
-read -p "📝 Masukkan nama subdomain (contoh: panel, billing, api): " SUB
-
-if [ -z "$SUB" ]; then
-    echo "❌ Subdomain tidak boleh kosong!"
-    exit 1
-fi
-
-echo ""
-echo "📌 Pilih mode arahkan:"
-echo "   1) Port  (Contoh: Arahkan ke aplikasi di 127.0.0.1:3000)"
-echo "   2) Folder (Contoh: Arahkan ke berkas di /var/www/nama_folder)"
-read -p "Pilihan Anda (1/2): " MODE
-
-if [[ "$MODE" == "1" ]]; then
-  read -p "🔌 Masukkan nomor port: " PORT
-  if ! [[ "$PORT" =~ ^[0-9]+$ ]]; then echo "❌ Port harus berupa angka!"; exit 1; fi
-elif [[ "$MODE" == "2" ]]; then
-  read -p "📁 Masukkan path lengkap folder (contoh: /var/www/html): " FOLDER
-  if [ -z "$FOLDER" ]; then echo "❌ Path folder tidak boleh kosong!"; exit 1; fi
-else
-  echo "❌ Pilihan mode tidak valid. Harap pilih 1 atau 2."
-  exit 1
-fi
-
-DOMAIN="$SUB.$ROOT_DOMAIN"
-echo ""
-echo "🌐 Target Domain: $DOMAIN"
-
-# ======================================
-# 🌐 DETEKSI IP PUBLIK
-# ======================================
-echo "🔍 Mendeteksi IP Publik Server..."
-
-IP=$(curl -s -m 10 https://api.ipify.org | tr -d ' \n')
-# Cadangan jika api.ipify.org gagal
-if [[ -z "$IP" ]]; then
-    IP=$(curl -s -m 10 https://ifconfig.me/ip | tr -d ' \n')
-fi
-
-if [[ -z "$IP" ]]; then
-  echo "❌ Gagal mendapatkan IP Publik. Cek koneksi internet server Anda."
-  exit 1
-fi
-
-echo "✅ IP Publik: $IP"
 
 # ======================================
 # 📢 FUNGSI KIRIM NOTIFIKASI TELEGRAM
@@ -112,196 +65,191 @@ curl -s -X POST \
 -d text="$1" > /dev/null
 }
 
-send_telegram "🚀 *MULAI INSTALASI*
-Domain: \`$DOMAIN\`
-IP: \`$IP\`
-Status: Sedang diproses..."
+# ======================================
+# 🌐 FUNGSI DETEKSI IP PUBLIK
+# ======================================
+detect_ip() {
+    echo "🔍 Mendeteksi IP Publik Server..."
+    IP=$(curl -s -m 10 https://api.ipify.org | tr -d ' \n')
+    [[ -z "$IP" ]] && IP=$(curl -s -m 10 https://ifconfig.me/ip | tr -d ' \n')
+    if [[ -z "$IP" ]]; then echo "❌ Gagal mendapatkan IP!"; exit 1; fi
+    echo "✅ IP Publik: $IP"
+}
 
 # ======================================
-# 📦 INSTALASI PAKET PENDUKUNG
+# ⚙️ FUNGSI TAMBAH / EDIT KONFIGURASI
 # ======================================
-echo ""
-echo "📦 Menginstal paket yang dibutuhkan..."
+install_config() {
+    clear
+    echo "⚙️ TAMBAH / UBAH KONFIGURASI"
+    echo "============================"
 
-apt update -y -qq
-apt install -y -qq nginx certbot python3-certbot-nginx curl openssl
+    echo ""
+    read -p "📝 Masukkan nama subdomain (contoh: panel, billing): " SUB
+    [[ -z "$SUB" ]] && { echo "❌ Tidak boleh kosong!"; return; }
 
-if [[ $? -ne 0 ]]; then
-    echo "❌ Gagal menginstal paket. Cek koneksi atau repositori server."
-    send_telegram "❌ *GAGAL INSTALASI*: Gagal menginstal paket pendukung."
-    exit 1
-fi
+    echo ""
+    echo "📌 Pilih mode arahkan:"
+    echo "   1) Port  (http://127.0.0.1:3000)"
+    echo "   2) Folder (/var/www/nama_folderstandar)"
+    read -p "Pilihan Anda (1/2): " MODE
 
-# ======================================
-# ☁️ PENGATURAN DNS CLOUDFLARE
-# ======================================
-echo ""
-echo "☁️ Menyinkronkan DNS ke Cloudflare..."
+    if [[ "$MODE" == "1" ]]; then
+      read -p "🔌 Masukkan nomor port: " PORT
+      if ! [[ "$PORT" =~ ^[0-9]+$ ]]; then echo "❌ Port harus angka!"; return; fi
+    elif [[ "$MODE" == "2" ]]; then
+      read -p "📁 Masukkan path lengkap folder: " FOLDER
+      [[ -z "$FOLDER" ]] && { echo "❌ Path tidak boleh kosong!"; return; }
+    else
+      echo "❌ Pilihan tidak valid."; return;
+    fi
 
-# Cek apakah catatan DNS sudah ada
-GET_RES=$(curl -s -X GET \
-"$API/zones/$ZONE_ID/dns_records?type=A&name=$DOMAIN" \
--H "Authorization: Bearer $CF_TOKEN" \
--H "Content-Type: application/json")
+    DOMAIN="$SUB.$ROOT_DOMAIN"
+    echo "🌐 Target Domain: $DOMAIN"
 
-# Ambil ID catatan jika ada
-RECORD_ID=$(echo "$GET_RES" | grep -o '"id":"[^"]*"' | head -n1 | cut -d':' -f2 | tr -d '"')
+    detect_ip
+    send_telegram "🚀 *MULAI INSTALASI* \nDomain: \`$DOMAIN\` \nIP: \`$IP\`"
 
-if [[ -n "$RECORD_ID" ]]; then
-  # PERBARUI DNS YANG SUDAH ADA
-  echo "♻️ Memperbarui catatan DNS yang sudah ada..."
-  RESULT=$(curl -s -X PATCH \
-  "$API/zones/$ZONE_ID/dns_records/$RECORD_ID" \
-  -H "Authorization: Bearer $CF_TOKEN" \
-  -H "Content-Type: application/json" \
-  --data "{
-    \"type\":\"A\",
-    \"name\":\"$DOMAIN\",
-    \"content\":\"$IP\",
-    \"ttl\":120,
-    \"proxied\":false
-  }")
-else
-  # BUAT DNS BARU
-  echo "🆕 Membuat catatan DNS baru..."
-  RESULT=$(curl -s -X POST \
-  "$API/zones/$ZONE_ID/dns_records" \
-  -H "Authorization: Bearer $CF_TOKEN" \
-  -H "Content-Type: application/json" \
-  --data "{
-    \"type\":\"A\",
-    \"name\":\"$DOMAIN\",
-    \"content\":\"$IP\",
-    \"ttl\":120,
-    \"proxied\":false
-  }")
-fi
+    # Instal paket
+    echo "📦 Memeriksa & menginstal paket pendukung..."
+    apt update -y -qq && apt install -y -qq nginx certbot python3-certbot-nginx curl openssl
 
-# Cek respon Cloudflare
-if echo "$RESULT" | grep -q '"success":true'; then
-    echo "✅ DNS Cloudflare berhasil diatur."
-    send_telegram "☁️ *DNS BERHASIL*
-\`$DOMAIN\` ➡️ \`$IP\`
-(Proxied: Non-Aktif)"
-else
-    echo "❌ Gagal mengatur DNS Cloudflare! Respon: $RESULT"
-    send_telegram "❌ *DNS GAGAL*: $DOMAIN"
-    exit 1
-fi
+    # Atur DNS Cloudflare
+    echo "☁️ Menyinkronkan DNS Cloudflare..."
+    GET_RES=$(curl -s -X GET "$API/zones/$ZONE_ID/dns_records?type=A&name=$DOMAIN" -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json")
+    RECORD_ID=$(echo "$GET_RES" | grep -o '"id":"[^"]*"' | head -n1 | cut -d':' -f2 | tr -d '"')
 
-# ======================================
-# ⚙️ KONFIGURASI NGINX
-# ======================================
-echo ""
-echo "⚙️ Membuat konfigurasi Nginx..."
+    if [[ -n "$RECORD_ID" ]]; then
+      RESULT=$(curl -s -X PATCH "$API/zones/$ZONE_ID/dns_records/$RECORD_ID" -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" --data "{\"type\":\"A\",\"name\":\"$DOMAIN\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}")
+    else
+      RESULT=$(curl -s -X POST "$API/zones/$ZONE_ID/dns_records" -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" --data "{\"type\":\"A\",\"name\":\"$DOMAIN\",\"content\":\"$IP\",\"ttl\":120,\"proxied\":false}")
+    fi
 
-CONFIG_PATH="/etc/nginx/sites-available/$DOMAIN"
+    if ! echo "$RESULT" | grep -q '"success":true'; then
+        echo "❌ Gagal atur DNS: $RESULT"
+        send_telegram "❌ *DNS GAGAL*: $DOMAIN"; return
+    fi
+    echo "✅ DNS Berhasil diatur."
 
-# Buat konfigurasi sesuai MODE yang dipilih
-if [[ "$MODE" == "1" ]]; then
-# MODE PORT (Reverse Proxy)
-cat > $CONFIG_PATH <<EOF
+    # Buat Konfigurasi Nginx
+    echo "⚙️ Membuat konfigurasi Nginx..."
+    CONFIG_PATH="/etc/nginx/sites-available/$DOMAIN"
+
+    if [[ "$MODE" == "1" ]]; then
+    cat > $CONFIG_PATH <<EOF
 server {
     listen 80;
     server_name $DOMAIN;
-
     location / {
         proxy_pass http://127.0.0.1:$PORT;
-
         proxy_set_header Host \$host;
-        proxy_set_header X-Forwarded-Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
-        
-        # Peningkatan keamanan & koneksi
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
-        proxy_connect_timeout 60s;
-        proxy_read_timeout 600s;
     }
 }
 EOF
-
-else
-# MODE FOLDER (Layanan Berkas)
-cat > $CONFIG_PATH <<EOF
+    else
+    cat > $CONFIG_PATH <<EOF
 server {
     listen 80;
     server_name $DOMAIN;
-
     root $FOLDER;
     index index.html index.htm index.php;
-
-    location / {
-        try_files \$uri \$uri/ =404;
-    }
-
-    # Izinkan akses ke berkas PHP jika ada
+    location / { try_files \$uri \$uri/ =404; }
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/var/run/php/php-fpm.sock;
     }
 }
 EOF
+    fi
 
-fi
+    ln -sf $CONFIG_PATH /etc/nginx/sites-enabled/
+    rm -f /etc/nginx/sites-enabled/default
 
-# Aktifkan konfigurasi & bersihkan bawaan
-ln -sf $CONFIG_PATH /etc/nginx/sites-enabled/
-rm -f /etc/nginx/sites-enabled/default
+    nginx -t -q || { echo "❌ Konfigurasi Nginx Salah!"; send_telegram "❌ *NGINX GAGAL*"; return; }
+    systemctl restart nginx
+    echo "✅ Nginx Aktif."
 
-# Cek kesalahan konfigurasi
-nginx -t -q
-if [[ $? -ne 0 ]]; then
-  echo "❌ KESALAHAN: Konfigurasi Nginx tidak valid!"
-  send_telegram "❌ *NGINX GAGAL*: Konfigurasi bermasalah."
-  exit 1
-fi
+    # Pasang SSL
+    echo "🔒 Memasang SSL..."
+    certbot --nginx -d $DOMAIN --non-interactive --agree-tos -m "admin@$ROOT_DOMAIN" --redirect > /dev/null 2>&1
 
-# Mulai ulang layanan
-systemctl restart nginx
-echo "✅ Konfigurasi Nginx aktif."
+    if [[ $? -eq 0 ]]; then
+      echo "✅ SSL Aktif (HTTPS)"
+      send_telegram "🔒 *SSL AKTIF* \n✅ https://$DOMAIN"
+    else
+      echo "⚠️ SSL Gagal / Sudah Ada"
+      send_telegram "⚠️ *SSL GAGAL*: $DOMAIN"
+    fi
 
-send_telegram "✅ *NGINX SIAP*
-Domain: $DOMAIN
-Mode: $( [[ "$MODE" == "1" ]] && echo "Port ($PORT)" || echo "Folder ($FOLDER)" )"
-
-# ======================================
-# 🔒 PEMASANGAN SSL LET'S ENCRYPT
-# ======================================
-echo ""
-echo "🔒 Memasang Sertifikat SSL (HTTPS)..."
-
-certbot --nginx \
--d $DOMAIN \
---non-interactive \
---agree-tos \
--m "admin@$ROOT_DOMAIN" \
---redirect \
---keep-until-expiring > /dev/null 2>&1
-
-if [[ $? -eq 0 ]]; then
-  echo "✅ SSL Berhasil dipasang & HTTP diarahkan ke HTTPS."
-  send_telegram "🔒 *SSL AKTIF*
-✅ https://$DOMAIN"
-else
-  echo "⚠️ Peringatan: Gagal mendapatkan sertifikat SSL. Cek apakah domain sudah mengarah ke server atau kuota Let's Encrypt habis."
-  send_telegram "⚠️ *SSL GAGAL*: $DOMAIN (HTTP saja)"
-fi
+    echo ""
+    echo "======================================"
+    echo "✅ SELESAI: https://$DOMAIN"
+    echo "======================================"
+}
 
 # ======================================
-# 🎉 SELESAI
+# 🗑️ FUNGSI HAPUS KONFIGURASI
 # ======================================
-echo ""
-echo "======================================"
-echo "🎉 INSTALASI SELESAI 100%"
-echo "🌐 Alamat: https://$DOMAIN"
-echo "======================================"
+delete_config() {
+    clear
+    echo "🗑️ HAPUS KONFIGURASI"
+    echo "===================="
+    read -p "📝 Masukkan nama subdomain yang mau dihapus: " SUB
+    DOMAIN="$SUB.$ROOT_DOMAIN"
+    CONFIG_PATH="/etc/nginx/sites-available/$DOMAIN"
 
-send_telegram "🎉 *INSTALASI SELESAI*
-✅ Domain: https://$DOMAIN
-✅ Status: Berhasil diinstal & dikonfigurasi"
+    [ ! -f "$CONFIG_PATH" ] && { echo "❌ Tidak ditemukan: $DOMAIN"; return; }
 
-exit 0
+    read -p "⚠️ Yakin hapus $DOMAIN? (y/n): " PILIH
+    if [[ "$PILIH" == "y" || "$PILIH" == "Y" ]]; then
+        rm -f /etc/nginx/sites-enabled/$DOMAIN
+        rm -f $CONFIG_PATH
+        systemctl restart nginx
+        echo "✅ Dihapus."
+        send_telegram "🗑️ *DIHAPUS*: $DOMAIN"
+    else
+        echo "❌ Dibatalkan."
+    fi
+}
+
+# ======================================
+# 📋 LIHAT DAFTAR
+# ======================================
+list_config() {
+    clear
+    echo "📋 DAFTAR DOMAIN TERSEDIA"
+    echo "========================="
+    ls -l /etc/nginx/sites-available/
+    echo ""
+}
+
+# ======================================
+# 📌 MENU UTAMA
+# ======================================
+while true; do
+    clear
+    echo "🚀 MENU UTAMA - CLOUDFLARE + SSL"
+    echo "=================================="
+    echo "1) Tambah / Ubah Konfigurasi"
+    echo "2) Hapus Konfigurasi"
+    echo "3) Lihat Daftar Konfigurasi"
+    echo "4) Keluar"
+    echo ""
+    read -p "👉 Pilih menu [1-4]: " MENU
+
+    case $MENU in
+        1) install_config ;;
+        2) delete_config ;;
+        3) list_config ;;
+        4) echo "👋 Keluar..."; exit 0 ;;
+        *) echo "❌ Pilihan tidak valid!"; sleep 1 ;;
+    esac
+    echo ""
+    read -p "Tekan [Enter] kembali ke menu..."
+done
