@@ -9,6 +9,8 @@ echo "======================================"
 # Supaya bisa dijalankan dari folder mana saja
 # ======================================
 CONFIG_FILE="/etc/cf/config.env"
+# 🔗 Tautan sumber skrip di GitHub (sesuai repositori kamu)
+GITHUB_RAW_URL="https://raw.githubusercontent.com/heruhendri/Installer-Pointing/refs/heads/menu/install.sh"
 
 # Cek apakah berkas konfigurasi ada
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -230,6 +232,42 @@ list_config() {
 }
 
 # ======================================
+# 🔄 FUNGSI UPDATE DARI GITHUB
+# ======================================
+update_script() {
+    clear
+    echo "🔄 PERBARUI SKRIP DARI GITHUB"
+    echo "============================="
+    echo "🔗 Mengunduh versi terbaru dari: $GITHUB_RAW_URL"
+    echo ""
+
+    # Cek koneksi ke GitHub
+    curl --connect-timeout 5 -s -I "$GITHUB_RAW_URL" > /dev/null
+    if [[ $? -ne 0 ]]; then
+        echo "❌ Gagal terhubung ke GitHub! Cek koneksi internet."
+        return 1
+    fi
+
+    # Unduh dan ganti skrip
+    echo "📥 Mengganti berkas skrip lama..."
+    curl -s -o /usr/local/bin/cf "$GITHUB_RAW_URL"
+
+    # Berikan izin eksekusi kembali
+    chmod +x /usr/local/bin/cf
+
+    # Cek keberhasilan
+    if [ $? -eq 0 ]; then
+        echo "✅ Berhasil diperbarui!"
+        echo "🔄 Skrip akan dimuat ulang..."
+        sleep 2
+        exec /usr/local/bin/cf "$@"
+    else
+        echo "❌ Gagal mengunduh pembaruan!"
+        return 1
+    fi
+}
+
+# ======================================
 # 📌 MENU UTAMA
 # ======================================
 while true; do
@@ -239,15 +277,17 @@ while true; do
     echo "1) Tambah / Ubah Konfigurasi"
     echo "2) Hapus Konfigurasi"
     echo "3) Lihat Daftar Konfigurasi"
-    echo "4) Keluar"
+    echo "4) Perbarui Skrip dari GitHub"
+    echo "5) Keluar"
     echo ""
-    read -p "👉 Pilih menu [1-4]: " MENU
+    read -p "👉 Pilih menu [1-5]: " MENU
 
     case $MENU in
         1) install_config ;;
         2) delete_config ;;
         3) list_config ;;
-        4) echo "👋 Keluar..."; exit 0 ;;
+        4) update_script ;;
+        5) echo "👋 Keluar..."; exit 0 ;;
         *) echo "❌ Pilihan tidak valid!"; sleep 1 ;;
     esac
     echo ""
